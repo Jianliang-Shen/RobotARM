@@ -1,0 +1,281 @@
+from dataclasses import dataclass
+import logging
+import time
+import numpy as np
+import threading
+import math
+import serial
+import re
+import os
+
+from lerobot.teleoperators.teleoperator import Teleoperator, TeleoperatorConfig
+from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
+from lerobot.motors import Motor, MotorNormMode
+from lerobot.motors import (
+    MotorsBus,
+)
+
+logger = logging.getLogger(__name__)
+
+@TeleoperatorConfig.register_subclass("dm_arm_leader")
+@dataclass
+class DmArmLeaderConfig(TeleoperatorConfig):
+    port: str
+    fps: int
+
+class DmArmLeader(Teleoperator):
+    config_class = DmArmLeaderConfig
+    name = "dm_arm_leader"
+
+    def __init__(self, config: DmArmLeaderConfig):
+        super().__init__(config)
+        self.config = config
+        self.results = [0, -3.1, 1.6, 0, 0, 0, 0]
+        self.prev_frame = self.results
+        self.lock = threading.Lock()
+        self.stop_flag = False
+        self.t1 = None
+        self.t2 = None
+        self._port = self.config.port
+        self._baudrate = 1000000
+        self._ser = None
+        self._is_connected = False
+        self._calibration_data = []
+
+    @property
+    def action_features(self) -> dict[str, type]:
+        return {}
+
+    @property
+    def feedback_features(self) -> dict[str, type]:
+        return {}
+
+    @property
+    def is_connected(self) -> bool:
+        return self._is_connected
+
+    def _sender(self):
+        while not self.stop_flag:
+            start = time.perf_counter()
+            for i in range(7):
+                cmd = f'#00{i}PRAD!'
+                self._ser.write(cmd.encode('ascii'))
+                time.sleep(0.002)
+
+            elapsed = time.perf_counter() - start
+            if elapsed < 0.02:
+                time.sleep(0.02 - elapsed)
+
+    def _receiver(self):
+        # 阈值，可根据关节实际运动幅度调整
+        THRESHOLD = [1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1]
+
+        if self.config.fps == 50:
+            THRESHOLD = [1, 1, 1, 1, 1, 1, 1]
+
+        # 初始化上一帧（可用初始角度）
+        def smooth_single_frame(curr_frame):
+            curr_frame = list(curr_frame)
+
+            if self.prev_frame is None:
+                self.prev_frame = curr_frame[:]   # 初始化
+                return curr_frame
+
+            smoothed = []
+            for i in range(7):
+                if abs(curr_frame[i] - self.prev_frame[i]) > THRESHOLD[i]:
+                    # print(f"异常值抹平: joint {i}, curr={curr_frame[i]:.4f}, prev={self.prev_frame[i]:.4f}")
+                    smoothed.append(self.prev_frame[i])   # 用上一帧
+                else:
+                    smoothed.append(curr_frame[i])   # 接受新值
+
+            self.prev_frame = smoothed[:]  # 更新历史帧
+            return smoothed
+
+        def pwm_to_angle(pwm_val, pwm_min=500, pwm_max=2500, angle_range=270):
+            pwm_span = pwm_max - pwm_min
+            angle = (pwm_val - pwm_min) / pwm_span * angle_range
+            return angle
+
+        pattern = re.compile(rb"#00([0-6])P(\d{4})!")  # 合法格式
+        legal_bytes = b"#0123456789P!"                 # 合法字符集
+
+        pkt = b""
+        s = b""
+        while not self.stop_flag:
+            if self._ser is None or not self._ser.is_open:
+                break
+            byte = self._ser.read(1)  # 阻塞读1字节
+            if not byte:
+                continue
+            if byte not in legal_bytes:
+                continue  # 非法字节直接丢弃
+            pkt += byte
+            # s += byte
+            # print(s)
+
+            if byte == b"!":  # 一个完整包
+                if pattern.fullmatch(pkt):
+                    m = pattern.match(pkt)
+                    idx = int(m.group(1))
+                    pwm = int(m.group(2))
+                    angle = pwm_to_angle(pwm)
+                    with self.lock:
+                        if angle:
+                            if idx == 0:
+                                self.results[idx] = (angle - self._calibration_data[0]) / 180 * math.pi
+                            if idx == 1:
+                                self.results[idx] = (angle - self._calibration_data[1]) / 180 * math.pi - 3.1
+                            if idx == 2:
+                                self.results[idx] = (angle - self._calibration_data[2]) / 180 * math.pi + 1.6
+                            if idx == 3:
+                                self.results[idx] = (angle - self._calibration_data[3]) / 180 * math.pi
+                            if idx == 4:
+                                self.results[idx] = (self._calibration_data[4] - angle) / 180 * math.pi
+                            if idx == 5:
+                                self.results[idx] = (angle - self._calibration_data[5]) / 180 * math.pi
+                            if idx == 6:
+                                self.results[idx] = (angle - self._calibration_data[6]) / 180 * math.pi
+
+
+                    # 剔除异常值
+                    self.results = smooth_single_frame(self.results)
+
+                # 无论合法与否，包都结束，清空缓冲
+                pkt = b""
+
+    def connect(self, calibrate: bool = False) -> None:
+        if self._is_connected:
+            raise DeviceAlreadyConnectedError(f"{self} already connected")
+
+        print(self._port, self._baudrate)
+
+        self._ser = serial.Serial(self._port, self._baudrate, bytesize=8, parity='N', stopbits=1, timeout=0.1)
+        self._is_connected = True
+        self.configure()
+        
+        logger.info(f"{self} connected.")
+
+    def is_calibrated(self) -> bool:
+        file_path = ".follower_calibration"
+        
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, "r") as f:
+                    data = f.read().strip()
+                    if data:
+                        self._calibration_data = [float(value) for value in data.split()]
+                        return True
+            except Exception as e:
+                logger.info(f"Error reading calibration file: {e}")
+                return False
+        else:
+            return False
+
+    def calibrate(self) -> None:
+        def send_command(ser, cmd):
+            ser.write(cmd.encode('ascii'))
+            time.sleep(0.01)
+            response = ser.read_all()
+            return response.decode('ascii', errors='ignore')
+
+        def pwm_to_angle(response_str, pwm_min=500, pwm_max=2500, angle_range=270):
+            match = re.search(r'P(\d{4})', response_str)
+            if not match:
+                return None
+            pwm_val = int(match.group(1))
+            pwm_span = pwm_max - pwm_min
+            angle = (pwm_val - pwm_min) / pwm_span * angle_range
+            return angle
+
+        if self.is_calibrated():
+            logger.info(f"Leader arm is already calibrated, currently calibration data is {self._calibration_data}")
+            return
+
+        index = 2
+        response = send_command(self._ser, f'#00{index}PVER!')
+        
+        for i in range(7):
+            cmd = f'#00{i}PULK!'
+            response = send_command(self._ser, cmd)
+            logger.info(f"Servo {i} torque released")
+        angle_pos = [0.0] * 7
+
+        for i in range(7):
+            cmd = f'#00{i}PRAD!'
+            response = send_command(self._ser, cmd)
+            angle = pwm_to_angle(response.strip())
+            if angle is not None:
+                angle_pos[i] = angle
+            else:
+                angle_pos[i] = 0.0
+                logger.info(f"Servo {i} returned None, defaulting to 0.0")
+
+        logger.info(f"Leader arm calibration done! Calibration data is {angle_pos}")
+        with open(".follower_calibration", "w") as f:
+            s = " ".join(map(str, angle_pos))
+            f.write(s  + "\n")
+            f.flush()
+        f.close()
+
+    def send_master(self, cmd):
+        self._ser.write(cmd.encode('ascii'))
+        time.sleep(0.007)
+
+    def configure(self) -> None:
+        if self.is_calibrated():
+            self.t1 = threading.Thread(target=self._sender, daemon=True)
+            self.t1.start()
+            self.t2 = threading.Thread(target=self._receiver, daemon=True)
+            self.t2.start()
+
+            self.send_master(f'#002PVER!')
+
+            for i in range(7):
+                cmd = f'#00{i}PULK!'
+                self.send_master(cmd)
+                print(f"舵机 {i} 释放扭力")
+            
+            print("configure leader arm down")
+        else:
+            print("Leader arm is not calibrated!")
+        
+    def setup_motors(self) -> None:
+        print("set up motor, do nothing here")
+
+    def get_action(self) -> dict[str, float]:
+        if not self._is_connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        action = {}
+        with self.lock:
+            action["joint_1.pos"] = self.results[0]
+            action["joint_2.pos"] = self.results[1]
+            action["joint_3.pos"] = self.results[2]
+            action["joint_4.pos"] = self.results[3]
+            action["joint_5.pos"] = self.results[4]
+            action["joint_6.pos"] = self.results[5]
+            action["gripper"] = self.results[6]
+        
+        # print(action)
+        return action
+
+    def send_feedback(self, feedback: dict[str, float]) -> None:
+        # TODO(rcadene, aliberts): Implement force feedback
+        raise NotImplementedError
+
+    def disconnect(self) -> None:
+        if not self._is_connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        # if self.t1 and self.t1.is_alive():
+        #     self.t1.join()
+        # if self.t2 and self.t2.is_alive():
+        #     self.t2.join()
+
+        # if self._ser is not None:
+        #     self._ser.close()
+
+        self.stop_flag = True  # 通知线程退出
+
+        logger.info(f"{self} disconnected.")

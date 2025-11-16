@@ -1,0 +1,21 @@
+# folders
+**/build/
+**/Debug/
+**/debug/
+**/release/
+**/Release/
+
+# binary
+*.elf
+*.bin
+*.o
+*.a
+.follower_calibration
+
+# temp
+*.tmp
+*.log
+
+**/*.pyc
+
+**/.vscode/

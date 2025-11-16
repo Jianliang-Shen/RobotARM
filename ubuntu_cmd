@@ -1,0 +1,31 @@
+lerobot-teleoperate \
+    --robot.type=dm_arm_follower \
+    --robot.port=/dev/ttyACM1 \
+    --robot.cameras="{
+        wrist: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30},
+        front: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30}
+      }" \
+    --teleop.type=dm_arm_leader \
+    --teleop.port=/dev/ttyACM0 \
+    --display_data=true
+
+
+
+lerobot-record \
+    --robot.type=dm_arm_follower \
+    --robot.port=/dev/ttyACM1 \
+    --robot.cameras="{
+        wrist: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30},
+        front: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30}
+      }" \
+    --teleop.type=dm_arm_leader \
+    --teleop.port=/dev/ttyACM0 \
+    --display_data=true \
+    --dataset.repo_id=shenjianliang/Damiao \
+    --dataset.push_to_hub=false \
+    --dataset.num_episodes=50 \
+    --dataset.episode_time_s=30 \
+    --dataset.reset_time_s=15 \
+    --dataset.single_task="Test" \
+    --dataset.push_to_hub=false
+

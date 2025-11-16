@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ArmDriver"
+version = "0.1.0"
+dependencies = [
+  "numpy>=2.0.1",
+  "pyserial>=3.5",
+  "dynamixel-sdk>=3.7.31",
+]
+
+authors = [
+  {name = "Jianliang Shen", email = "jianliang.shen.cn@gmail.com"},
+]
+
+[project.urls]
+Homepage = "https://github.com/Jianliang-Shen/RobotARM.git"
+Documentation = "https://github.com/Jianliang-Shen/RobotARM.git"
