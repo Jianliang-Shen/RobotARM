@@ -1,17 +1,18 @@
 from ArmDriver.follower import DmArmFollower, DmArmFollowerConfig
-from ArmDriver.leader import DmArmLeader, DmArmLeaderConfig
+from ArmDriver.servo_leader import ServoArmLeader, ServoArmLeaderConfig
 import time
 
 
 follower_config = DmArmFollowerConfig(
-    port="/dev/ttyACM1",
-)
-
-leader_config = DmArmLeaderConfig(
     port="/dev/ttyACM0",
 )
 
-leader = DmArmLeader(leader_config)
+leader_config = ServoArmLeaderConfig(
+    port="/dev/ttyUSB0",
+    fps=50
+)
+
+leader = ServoArmLeader(leader_config)
 leader.connect()
 
 follower = DmArmFollower(follower_config)

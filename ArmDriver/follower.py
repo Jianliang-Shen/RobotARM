@@ -161,13 +161,13 @@ class DmArmFollower(Robot):
 
         gripper = action["gripper"]
 
-        print(f"pos is {pos}, gripper is {gripper}")
+        # print(f"pos is {pos}, gripper is {gripper}")
 
         if not self.first_action_received:
             self.first_action_received = True
             start = time.perf_counter()
             self.arm.set_joint_angles(pos, 1)
-            self.arm.set_gripper_angles(gripper_angle=gripper*2, v=2, tau_limit=0.2)
+            self.arm.set_gripper_angles(gripper_angle=gripper*2, v=2, tau_limit=0.1)
             time.sleep(1)
             dt_ms = (time.perf_counter() - start) * 1e3
             print(f"Run to start position of first action: {dt_ms:.1f} ms")
@@ -176,7 +176,7 @@ class DmArmFollower(Robot):
         # Send goal position to the arm
 
         self.arm.set_joint_angles(pos, 6)
-        self.arm.set_gripper_angles(gripper_angle=gripper*2, v=2, tau_limit=0.5)
+        self.arm.set_gripper_angles(gripper_angle=gripper*2, v=2, tau_limit=0.1)
         return action
 
     def disconnect(self):

@@ -114,7 +114,7 @@
     ```bash
     # 首次运行会保存校准数据到 .follower_calibration 中
     lerobot-calibrate \
-        --teleop.type=dm_arm_leader \
+        --teleop.type=servo_arm_leader \
         --teleop.port=/dev/ttyUSB0 \
         --teleop.id=my_awesome_leader_arm \
         --teleop.fps=25

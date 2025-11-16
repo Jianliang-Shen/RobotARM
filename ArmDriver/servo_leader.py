@@ -17,20 +17,20 @@ from lerobot.motors import (
 
 logger = logging.getLogger(__name__)
 
-@TeleoperatorConfig.register_subclass("dm_arm_leader")
+@TeleoperatorConfig.register_subclass("servo_arm_leader")
 @dataclass
-class DmArmLeaderConfig(TeleoperatorConfig):
+class ServoArmLeaderConfig(TeleoperatorConfig):
     port: str
     fps: int
 
-class DmArmLeader(Teleoperator):
-    config_class = DmArmLeaderConfig
-    name = "dm_arm_leader"
+class ServoArmLeader(Teleoperator):
+    config_class = ServoArmLeaderConfig
+    name = "servo_arm_leader"
 
-    def __init__(self, config: DmArmLeaderConfig):
+    def __init__(self, config: ServoArmLeaderConfig):
         super().__init__(config)
         self.config = config
-        self.results = [0, -3.1, 1.6, 0, 0, 0, 0]
+        self.results = [0, 0, 0, 0, 0, 0, 0]
         self.prev_frame = self.results
         self.lock = threading.Lock()
         self.stop_flag = False
@@ -60,11 +60,11 @@ class DmArmLeader(Teleoperator):
             for i in range(7):
                 cmd = f'#00{i}PRAD!'
                 self._ser.write(cmd.encode('ascii'))
-                time.sleep(0.002)
+                time.sleep(0.003)
 
             elapsed = time.perf_counter() - start
-            if elapsed < 0.02:
-                time.sleep(0.02 - elapsed)
+            if elapsed < 0.032:
+                time.sleep(0.032 - elapsed)
 
     def _receiver(self):
         # 阈值，可根据关节实际运动幅度调整
@@ -125,13 +125,13 @@ class DmArmLeader(Teleoperator):
                             if idx == 0:
                                 self.results[idx] = (angle - self._calibration_data[0]) / 180 * math.pi
                             if idx == 1:
-                                self.results[idx] = (angle - self._calibration_data[1]) / 180 * math.pi - 3.1
+                                self.results[idx] = (self._calibration_data[1] - angle) / 180 * math.pi
                             if idx == 2:
-                                self.results[idx] = (angle - self._calibration_data[2]) / 180 * math.pi + 1.6
+                                self.results[idx] = (self._calibration_data[2] - angle) / 180 * math.pi
                             if idx == 3:
                                 self.results[idx] = (angle - self._calibration_data[3]) / 180 * math.pi
                             if idx == 4:
-                                self.results[idx] = (self._calibration_data[4] - angle) / 180 * math.pi
+                                self.results[idx] = (angle - self._calibration_data[4]) / 180 * math.pi
                             if idx == 5:
                                 self.results[idx] = (angle - self._calibration_data[5]) / 180 * math.pi
                             if idx == 6:
@@ -249,13 +249,13 @@ class DmArmLeader(Teleoperator):
 
         action = {}
         with self.lock:
-            action["joint_1.pos"] = self.results[0]
-            action["joint_2.pos"] = self.results[1]
-            action["joint_3.pos"] = self.results[2]
-            action["joint_4.pos"] = self.results[3]
-            action["joint_5.pos"] = self.results[4]
-            action["joint_6.pos"] = self.results[5]
-            action["gripper"] = self.results[6]
+            action["joint_1.pos"] = round(self.results[0], 7)
+            action["joint_2.pos"] = round(self.results[1], 7)
+            action["joint_3.pos"] = round(self.results[2], 7)
+            action["joint_4.pos"] = round(self.results[3], 7)
+            action["joint_5.pos"] = round(self.results[5], 7)
+            action["joint_6.pos"] = round(self.results[4], 7)
+            action["gripper"] = round(self.results[6] * 6, 7)
         
         # print(action)
         return action
