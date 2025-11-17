@@ -371,7 +371,7 @@ class RobotController:
         return gripper
     
     def set_joint_angles(self, q, v):
-        if self.type == 'Slave':
+        if self.type == 'follower':
             q = self._apply_inversion(q)
 
             for i, joint in enumerate(self.joints):
@@ -380,7 +380,7 @@ class RobotController:
             print("Only Slave Arm can set q")
     
     def set_gripper_angles(self, gripper_angle, v, tau_limit = 0.1):
-        if self.type == 'Slave':
+        if self.type == 'follower':
             self.RobotCtrl.control_pos_force(self.gripper, gripper_angle, v, tau_limit)
         else:
             print("Only Slave Arm can set gripper")
@@ -397,7 +397,7 @@ class RobotController:
     #     return True
 
     def gravity_compensation(self):
-        if self.type == 'Master':
+        if self.type == 'leader':
             q = []
             for joint in self.joints:
                 q.append(joint.getPosition())

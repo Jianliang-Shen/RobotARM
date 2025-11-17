@@ -1,8 +1,17 @@
 import time
 from ArmDriver.ArmDriver import RobotController
+import argparse
 
 if __name__ == "__main__":
-    controller = RobotController(port='/dev/ttyACM1')
+    parser = argparse.ArgumentParser(description="Interactive Serial Shell")
+    parser.add_argument(
+        "--port",
+        type=str,
+        required=True,
+        help="Serial port for the Master Arm (e.g. COM3 or /dev/ttyACM0)",
+    )
+    args = parser.parse_args()
+    controller = RobotController(port=args.port)
 
     # if not controller.set_zero():
     #     print("Set Zero failed")

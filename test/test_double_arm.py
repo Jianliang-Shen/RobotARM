@@ -3,11 +3,11 @@ from ArmDriver.DM_CAN import *
 from ArmDriver.ArmDriver import RobotController
 
 if __name__ == "__main__":
-    master = RobotController(port='/dev/ttyACM0', type='Master')
+    master = RobotController(port='/dev/ttyACM0', type='leader')
     master.enable()
     time.sleep(0.5)
 
-    slave = RobotController(port='/dev/ttyACM1', type='Slave')
+    slave = RobotController(port='/dev/ttyACM1', type='follower')
     slave.enable()
     time.sleep(0.5)
 

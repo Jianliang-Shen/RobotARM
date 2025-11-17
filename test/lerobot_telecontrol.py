@@ -24,7 +24,6 @@ try:
         follower.send_action(action)
 
         elapsed = time.perf_counter() - start
-        # print(elapsed)
         if elapsed < 0.02:
             time.sleep(0.02 - elapsed)
 except KeyboardInterrupt:

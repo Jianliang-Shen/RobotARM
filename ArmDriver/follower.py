@@ -91,7 +91,7 @@ class DmArmFollower(Robot):
         if self._is_connected:
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
-        self.arm = RobotController(self.config.port, type='Slave')
+        self.arm = RobotController(self.config.port, type='follower')
         if self.arm.RobotCtrl.serial_.is_open:
             self._is_connected = True
         else:
