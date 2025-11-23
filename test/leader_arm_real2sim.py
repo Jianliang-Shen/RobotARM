@@ -10,7 +10,7 @@ if __name__ == "__main__":
         "--port",
         type=str,
         required=True,
-        help="Serial port for the Master Arm (e.g. COM3 or /dev/ttyACM0)",
+        help="Serial port for the Arm (e.g. COM3 or /dev/ttyACM0)",
     )
     args = parser.parse_args()
 
