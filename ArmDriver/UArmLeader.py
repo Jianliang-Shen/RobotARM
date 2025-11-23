@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 class UArmLeaderConfig(TeleoperatorConfig):
     port: str
     fps: int
+    cali_file: str = "leader.cali"
 
 class UArmLeader(Teleoperator):
     config_class = UArmLeaderConfig
@@ -42,6 +43,15 @@ class UArmLeader(Teleoperator):
         self._is_connected = False
         self._calibration_data = []
         self._gripper_scale = 0
+        self.joint_range = [
+            [   -np.pi,     np.pi   ],
+            [   -np.pi,     0       ],
+            [   0,          np.pi   ],
+            [   -1.8,       1.4     ],
+            [   -2,         2       ],
+            [   -np.pi,     np.pi   ],
+        ]
+        self.gripper_range = [-1.35, 0]
 
     @property
     def action_features(self) -> dict[str, type]:
@@ -158,11 +168,9 @@ class UArmLeader(Teleoperator):
         logger.info(f"{self} connected.")
 
     def is_calibrated(self) -> bool:
-        file_path = ".follower_calibration"
-        
-        if os.path.exists(file_path):
+        if os.path.exists(self.config.cali_file):
             try:
-                with open(file_path, "r") as f:
+                with open(self.config.cali_file, "r") as f:
                     data = f.read().strip()
                     if data:
                         if len(data.split()) == 8:
@@ -170,7 +178,7 @@ class UArmLeader(Teleoperator):
                             delta = self._calibration_data[6] - self._calibration_data[7]
                             if delta !=0:
                                 self._gripper_scale = 1.35 / (delta / 180 * math.pi)
-                                print(self._gripper_scale)
+                                # print(self._gripper_scale)
                             return True
                         else:
                             return False
@@ -231,7 +239,7 @@ class UArmLeader(Teleoperator):
         angle_pos[7] = gripper_angle
 
         logger.info(f"Leader arm calibration done! Calibration data is {angle_pos}")
-        with open(".follower_calibration", "w") as f:
+        with open(self.config.cali_file, "w") as f:
             s = " ".join(map(str, angle_pos))
             f.write(s  + "\n")
             f.flush()
@@ -262,19 +270,31 @@ class UArmLeader(Teleoperator):
     def setup_motors(self) -> None:
         print("set up motor, do nothing here")
 
+    def set_joint_boundary(self, q):
+        for i, joint in enumerate(q):
+            q[i] = min(max(joint, self.joint_range[i][0]), self.joint_range[i][1])
+        return q
+    
+    def set_gripper_boundary(self, input_gripper):
+        return min(max(input_gripper, self.gripper_range[0]), self.gripper_range[1])
+
     def get_action(self) -> dict[str, float]:
         if not self._is_connected:
             raise DeviceNotConnectedError(f"{self} is not connected.")
 
         action = {}
         with self.lock:
+            self.results[0:6] = self.set_joint_boundary(self.results[0:6])
             action["joint_1.pos"] = round(self.results[0], 7)
             action["joint_2.pos"] = round(self.results[1], 7)
             action["joint_3.pos"] = round(self.results[2], 7)
             action["joint_4.pos"] = round(self.results[3], 7)
             action["joint_5.pos"] = round(self.results[5], 7)
             action["joint_6.pos"] = round(self.results[4], 7)
-            action["gripper"] = round(self.results[6] * self._gripper_scale, 7)
+
+            self.results[6] *= self._gripper_scale
+            self.results[6] = self.set_gripper_boundary(self.results[6])
+            action["gripper"] = round(self.results[6], 7)
         
         # print(action)
         return action

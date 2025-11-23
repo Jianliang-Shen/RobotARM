@@ -292,7 +292,7 @@ class RobotController:
             self.MotorCtrl.refresh_motor_status(motor)
             cur_param = self.MotorCtrl.read_motor_param(motor, params_name[i])
             if abs(cur_param - params[i]) > 1e-8:
-                print(cur_param)
+                print(f"cur_param = {cur_param}")
                 return False
 
         return True

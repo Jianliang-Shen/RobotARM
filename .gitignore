@@ -10,7 +10,7 @@
 *.bin
 *.o
 *.a
-.follower_calibration
+*.cali
 
 # temp
 *.tmp
