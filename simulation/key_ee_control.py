@@ -1,6 +1,6 @@
 import time
 from pynput import keyboard
-from DmArm.RobotKinematics import RobotKinematics, MujocoRobot
+from ArmDriver.RobotKinematics import RobotKinematics, MujocoRobot
 
 key_map = {
     "1": (0, +1), "q": (0, -1),  # x

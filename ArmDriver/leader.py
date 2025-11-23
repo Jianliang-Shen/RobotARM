@@ -51,7 +51,7 @@ class DmArmLeader(Teleoperator):
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
         self.arm = RobotController(self.config.port, type='leader')
-        if self.arm.RobotCtrl.serial_.is_open:
+        if self.arm.connect():
             self._is_connected = True
         else:
             print("Follower Arm connected fail")
@@ -105,5 +105,7 @@ class DmArmLeader(Teleoperator):
         if not self._is_connected:
             raise DeviceNotConnectedError(f"{self} is not connected.")
         self.arm.disable()
+        self.arm.disconnect()
+        self.is_connected = False
 
         logger.info(f"{self} disconnected.")
