@@ -33,6 +33,7 @@ class DmArmLeader(Teleoperator):
         self._ser = None
         self._is_connected = False
         self._calibration_data = []
+        self._gripper_scale = 2.5
 
     @property
     def action_features(self) -> dict[str, type]:
@@ -51,7 +52,7 @@ class DmArmLeader(Teleoperator):
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
         self.arm = RobotController(self.config.port, type='leader')
-        if self.arm.RobotCtrl.serial_.is_open:
+        if self.arm.connect():
             self._is_connected = True
         else:
             print("Follower Arm connected fail")
@@ -92,7 +93,7 @@ class DmArmLeader(Teleoperator):
         action["joint_4.pos"] = self.results[3]
         action["joint_5.pos"] = self.results[4]
         action["joint_6.pos"] = self.results[5]
-        action["gripper"] = self.arm.get_current_gripper_angles()
+        action["gripper"] = self.arm.get_current_gripper_angles() * self._gripper_scale
         
         # print(action)
         return action
@@ -105,5 +106,7 @@ class DmArmLeader(Teleoperator):
         if not self._is_connected:
             raise DeviceNotConnectedError(f"{self} is not connected.")
         self.arm.disable()
+        self.arm.disconnect()
+        self._is_connected = False
 
         logger.info(f"{self} disconnected.")

@@ -87,10 +87,23 @@ class MotorControl:
         self.serial_ = serial_device
         self.motors_map = dict()
         self.data_save = bytes()  # save data
+
+    def connect(self):
         if self.serial_.is_open:  # open the serial port
             print("Serial port is open")
-            serial_device.close()
-        self.serial_.open()
+            self.serial_.close()
+        try:
+            self.serial_.open()
+            return True
+        except:
+            return False
+
+    def disconnect(self):
+        try:
+            self.serial_.close()
+            return True
+        except:
+            return False
 
     def controlMIT(self, DM_Motor, kp: float, kd: float, q: float, dq: float, tau: float):
         """

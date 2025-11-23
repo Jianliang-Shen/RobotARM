@@ -17,17 +17,17 @@ from lerobot.motors import (
 
 logger = logging.getLogger(__name__)
 
-@TeleoperatorConfig.register_subclass("servo_arm_leader")
+@TeleoperatorConfig.register_subclass("uarm_leader")
 @dataclass
-class ServoArmLeaderConfig(TeleoperatorConfig):
+class UArmLeaderConfig(TeleoperatorConfig):
     port: str
     fps: int
 
-class ServoArmLeader(Teleoperator):
-    config_class = ServoArmLeaderConfig
-    name = "servo_arm_leader"
+class UArmLeader(Teleoperator):
+    config_class = UArmLeaderConfig
+    name = "uarm_leader"
 
-    def __init__(self, config: ServoArmLeaderConfig):
+    def __init__(self, config: UArmLeaderConfig):
         super().__init__(config)
         self.config = config
         self.results = [0, 0, 0, 0, 0, 0, 0]
@@ -41,6 +41,7 @@ class ServoArmLeader(Teleoperator):
         self._ser = None
         self._is_connected = False
         self._calibration_data = []
+        self._gripper_scale = 0
 
     @property
     def action_features(self) -> dict[str, type]:
@@ -164,8 +165,15 @@ class ServoArmLeader(Teleoperator):
                 with open(file_path, "r") as f:
                     data = f.read().strip()
                     if data:
-                        self._calibration_data = [float(value) for value in data.split()]
-                        return True
+                        if len(data.split()) == 8:
+                            self._calibration_data = [float(value) for value in data.split()]
+                            delta = self._calibration_data[6] - self._calibration_data[7]
+                            if delta !=0:
+                                self._gripper_scale = 1.35 / (delta / 180 * math.pi)
+                                print(self._gripper_scale)
+                            return True
+                        else:
+                            return False
             except Exception as e:
                 logger.info(f"Error reading calibration file: {e}")
                 return False
@@ -199,7 +207,7 @@ class ServoArmLeader(Teleoperator):
             cmd = f'#00{i}PULK!'
             response = send_command(self._ser, cmd)
             logger.info(f"Servo {i} torque released")
-        angle_pos = [0.0] * 7
+        angle_pos = [0.0] * 8
 
         for i in range(7):
             cmd = f'#00{i}PRAD!'
@@ -210,6 +218,17 @@ class ServoArmLeader(Teleoperator):
             else:
                 angle_pos[i] = 0.0
                 logger.info(f"Servo {i} returned None, defaulting to 0.0")
+
+        input(f"Please pull up the gripper and then press Enter Key")
+        cmd = '#006PRAD!'  # Command to read the gripper (servo 6) position
+        response = send_command(self._ser, cmd)
+        gripper_angle = pwm_to_angle(response.strip())
+        if gripper_angle is not None:
+            logger.info(f"Gripper angle: {gripper_angle}")
+        else:
+            gripper_angle = 0.0
+            logger.info("Gripper returned None, defaulting to 0.0")
+        angle_pos[7] = gripper_angle
 
         logger.info(f"Leader arm calibration done! Calibration data is {angle_pos}")
         with open(".follower_calibration", "w") as f:
@@ -255,7 +274,7 @@ class ServoArmLeader(Teleoperator):
             action["joint_4.pos"] = round(self.results[3], 7)
             action["joint_5.pos"] = round(self.results[5], 7)
             action["joint_6.pos"] = round(self.results[4], 7)
-            action["gripper"] = round(self.results[6] * 6, 7)
+            action["gripper"] = round(self.results[6] * self._gripper_scale, 7)
         
         # print(action)
         return action

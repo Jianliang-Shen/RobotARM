@@ -4,26 +4,37 @@ from ArmDriver.ArmDriver import RobotController
 import argparse
 from ArmDriver.RobotKinematics import MujocoRobot
 
+class ViewerClosedException(Exception):
+    pass
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Interactive Serial Shell")
     parser.add_argument(
         "--port",
         type=str,
         required=True,
-        help="Serial port for the Master Arm (e.g. COM3 or /dev/ttyACM0)",
+        help="Serial port for the Arm (e.g. COM3 or /dev/ttyACM0)",
     )
     args = parser.parse_args()
 
-    controller = RobotController(port=args.port, type='leader')
-    controller.enable()
+    RobotCtrl = RobotController(port=args.port, type='leader')
+    RobotCtrl.connect()
+    RobotCtrl.enable()
 
     sim = MujocoRobot()
-    while sim.viewer.is_running():
-        controller.gravity_compensation()
-        q = controller.get_current_joint_angles()
-        gripper = controller.get_current_gripper_angles()
+    try:
+        while sim.viewer.is_running():
+            RobotCtrl.gravity_compensation()
+            q = RobotCtrl.get_current_joint_angles()
+            gripper = RobotCtrl.get_current_gripper_angles()
 
-        print(q, gripper)
-        sim.update_param(q, gripper=-gripper*0.05/1.4)
-        time.sleep(0.01)
+            print(q, gripper)
+            sim.update_param(q, gripper=-gripper*0.05/1.4)
+            time.sleep(0.01)
 
+        raise ViewerClosedException("Viewer window closed")
+
+    except (KeyboardInterrupt, ViewerClosedException) as e:
+        print(f"Detected exit: {e}")
+        RobotCtrl.disable()
+        RobotCtrl.disconnect()

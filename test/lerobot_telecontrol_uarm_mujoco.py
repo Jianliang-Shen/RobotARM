@@ -1,13 +1,13 @@
-from ArmDriver.servo_leader import ServoArmLeader, ServoArmLeaderConfig
+from ArmDriver.UArmLeader import UArmLeader, UArmLeaderConfig
 from ArmDriver.RobotKinematics import MujocoRobot
 import time
 
-leader_config = ServoArmLeaderConfig(
-    port="/dev/ttyUSB0",
+leader_config = UArmLeaderConfig(
+    port="/dev/ttyUSB1",
     fps=50
 )
 
-leader = ServoArmLeader(leader_config)
+leader = UArmLeader(leader_config)
 leader.connect()
 
 try:
@@ -27,12 +27,11 @@ try:
 
         gripper = action["gripper"]
         print(gripper)
-        sim.update_param(q, gripper=-gripper*0.05/0.75)
-
+        sim.update_param(q, gripper=-gripper*0.05/1.35)
 
         elapsed = time.perf_counter() - start
-        if elapsed < 0.03:
-            time.sleep(0.03 - elapsed)
+        if elapsed < 0.032:
+            time.sleep(0.032 - elapsed)
 except KeyboardInterrupt:
     print("\nStopping teleop...")
     leader.disconnect()

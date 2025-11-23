@@ -179,7 +179,7 @@ class InverseDynamics:
         return tau
 
 class RobotController:
-    def __init__(self, port='COM13', baudrate=921600, type="Master"):
+    def __init__(self, port='COM13', baudrate=921600, type="leader"):
         self.serial_device = serial.Serial(port, baudrate, timeout=0.5)
 
         self.Motor1 = Motor(DM_Motor_Type.DM4340, 0x01, 0x11)
@@ -193,10 +193,11 @@ class RobotController:
         self.Motor7 = Motor(DM_Motor_Type.DM4310, 0x07, 0x17)
         self.gripper = self.Motor7
 
-        self.RobotCtrl = MotorControl(self.serial_device)
+        self.MotorCtrl = MotorControl(self.serial_device)
+
         for joint in self.joints:
-            self.RobotCtrl.addMotor(joint)
-        self.RobotCtrl.addMotor(self.gripper)
+            self.MotorCtrl.addMotor(joint)
+        self.MotorCtrl.addMotor(self.gripper)
 
 
         # 反转轴：2,3,4,5（基于0的索引：1,2,3,4）
@@ -206,39 +207,61 @@ class RobotController:
 
         # 关节范围
         # self.arm = RobotKinematics()
-        # self.joint_ranges = self.arm.joint_ranges
+        self.joint_range = [
+            [   -np.pi,     np.pi   ],
+            [   -np.pi,     0       ],
+            [   0,          np.pi   ],
+            [   -1.8,       1.4     ],
+            [   -2,         2       ],
+            [   -np.pi,     np.pi   ]
+        ]
+
+        self.gripper_range = [-1.35, 0]
+
+    def set_joint_boundary(self, q):
+        for i, joint in enumerate(q):
+            q[i] = min(max(joint, self.joint_range[i][0]), self.joint_range[i][1])
+        return q
+    
+    def set_gripper_boundary(self, input_gripper):
+        return min(max(input_gripper, self.gripper_range[0]), self.gripper_range[1])
+
+    def connect(self):
+        return self.MotorCtrl.connect()
+
+    def disconnect(self):
+        return self.MotorCtrl.disconnect()
 
     def enable(self):
         for joint in self.joints:
-            self.RobotCtrl.enable(joint)
-            time.sleep(0.1)
-            self.RobotCtrl.refresh_motor_status(joint)
+            self.MotorCtrl.enable(joint)
+            self.MotorCtrl.refresh_motor_status(joint)
             # print("joint state:", joint.getState())
             if joint.getState() == 0:
                 return False
         
-        self.RobotCtrl.enable(self.gripper)
-        time.sleep(0.1)
-        self.RobotCtrl.refresh_motor_status(self.gripper)
+        self.MotorCtrl.enable(self.gripper)
+        self.MotorCtrl.refresh_motor_status(self.gripper)
         # print("gripper state:", self.gripper.getState())
         if self.gripper.getState() == 0:
             return False
-    
+
+        if not self.set_mode():
+            return False
+
         print(f"{self.type} Arm is enabled")
         return True
 
     def disable(self):
         for joint in self.joints:
-            self.RobotCtrl.disable(joint)
-            time.sleep(0.1)
+            self.MotorCtrl.disable(joint)
             # print("joint state:", joint.getState())
-            self.RobotCtrl.refresh_motor_status(joint)
+            self.MotorCtrl.refresh_motor_status(joint)
             if joint.getState() != 0:
                 return False
         
-        self.RobotCtrl.disable(self.gripper)
-        time.sleep(0.1)
-        self.RobotCtrl.refresh_motor_status(self.gripper)
+        self.MotorCtrl.disable(self.gripper)
+        self.MotorCtrl.refresh_motor_status(self.gripper)
         # print("gripper state:", self.gripper.getState())
         if self.gripper.getState() != 0:
             return False
@@ -247,100 +270,105 @@ class RobotController:
         return True
 
     def get_motor_params(self, motor):
-        self.RobotCtrl.enable(motor)
-        print("slave ID:",self.RobotCtrl.read_motor_param(motor,DM_variable.ESC_ID))
-        print("Master ID:",self.RobotCtrl.read_motor_param(motor,DM_variable.MST_ID))
-        print("Work mode:",self.RobotCtrl.read_motor_param(motor,DM_variable.CTRL_MODE))
-        print("ACC:",self.RobotCtrl.read_motor_param(motor,DM_variable.ACC))
-        print("DEC:",self.RobotCtrl.read_motor_param(motor,DM_variable.DEC))
-        print("V Kp: {:.5g}".format(self.RobotCtrl.read_motor_param(motor, DM_variable.KP_ASR)))
-        print("V Ki: {:.5g}".format(self.RobotCtrl.read_motor_param(motor, DM_variable.KI_ASR)))
-        print("Pos Kp: {:.5g}".format(self.RobotCtrl.read_motor_param(motor, DM_variable.KP_APR)))
-        print("Pos Ki: {:.5g}".format(self.RobotCtrl.read_motor_param(motor, DM_variable.KI_APR)))
+        self.MotorCtrl.enable(motor)
+        self.MotorCtrl.refresh_motor_status(motor)
+        print("slave ID:",self.MotorCtrl.read_motor_param(motor,DM_variable.ESC_ID))
+        print("Master ID:",self.MotorCtrl.read_motor_param(motor,DM_variable.MST_ID))
+        print("Work mode:",self.MotorCtrl.read_motor_param(motor,DM_variable.CTRL_MODE))
+        print("ACC:",self.MotorCtrl.read_motor_param(motor,DM_variable.ACC))
+        print("DEC:",self.MotorCtrl.read_motor_param(motor,DM_variable.DEC))
+        print("V Kp: {:.5g}".format(self.MotorCtrl.read_motor_param(motor, DM_variable.KP_ASR)))
+        print("V Ki: {:.5g}".format(self.MotorCtrl.read_motor_param(motor, DM_variable.KI_ASR)))
+        print("Pos Kp: {:.5g}".format(self.MotorCtrl.read_motor_param(motor, DM_variable.KP_APR)))
+        print("Pos Ki: {:.5g}".format(self.MotorCtrl.read_motor_param(motor, DM_variable.KI_APR)))
         print("Cur q: {:.5g}".format(motor.getPosition()))
-        self.RobotCtrl.disable(motor)
+        self.MotorCtrl.disable(motor)
 
-    # def set_motor_param(self, motor, acc, dec, kp_asr, ki_asr, kp_apr, ki_apr):
-    #     params = [acc, dec, kp_asr, ki_asr, kp_apr, ki_apr]
-    #     params_name = [DM_variable.ACC, DM_variable.DEC, DM_variable.KP_ASR, DM_variable.KI_ASR, DM_variable.KP_APR, DM_variable.KI_APR]
-    #     for i in range(len(params)):
-    #         self.RobotCtrl.change_motor_param(motor, params_name[i], params[i])
-    #         self.RobotCtrl.refresh_motor_status(motor)
-    #         cur_param = self.RobotCtrl.read_motor_param(motor, params_name[i])
-    #         if abs(cur_param - params[i]) > 1e-8:
-    #             print(cur_param)
-    #             return False
+    def set_motor_pos_vel_param(self, motor, acc, dec, kp_asr, ki_asr, kp_apr, ki_apr):
+        params = [acc, dec, kp_asr, ki_asr, kp_apr, ki_apr]
+        params_name = [DM_variable.ACC, DM_variable.DEC, DM_variable.KP_ASR, DM_variable.KI_ASR, DM_variable.KP_APR, DM_variable.KI_APR]
+        for i in range(len(params)):
+            self.MotorCtrl.change_motor_param(motor, params_name[i], params[i])
+            self.MotorCtrl.refresh_motor_status(motor)
+            cur_param = self.MotorCtrl.read_motor_param(motor, params_name[i])
+            if abs(cur_param - params[i]) > 1e-8:
+                print(cur_param)
+                return False
 
-    #     return True
-
-    # def set_motor_mode(self, motor, MODE: Control_Type):
-    #     curr_mode = self.RobotCtrl.read_motor_param(motor,DM_variable.CTRL_MODE)
-    #     if curr_mode != MODE:
-    #         self.RobotCtrl.change_motor_param(motor, DM_variable.CTRL_MODE, MODE)
-    #         self.RobotCtrl.refresh_motor_status(motor)
-
-    #     curr_mode = self.RobotCtrl.read_motor_param(motor,DM_variable.CTRL_MODE)
-    #     if curr_mode != MODE:
-    #         return False
-
-    #     return True
+        return True
     
+    def set_joint_pos_vel_param(self):
+        for joint in self.joints:
+            if joint.MotorType == DM_Motor_Type.DM4340:
+                if not self.set_motor_pos_vel_param(motor=joint, acc=8, dec=-8, kp_asr=0.000884, ki_asr=0.005, kp_apr=500, ki_apr=0.0001):
+                    return False
+            elif joint.MotorType == DM_Motor_Type.DM4310:
+                if not self.set_motor_pos_vel_param(motor=joint, acc=10, dec=-10, kp_asr=0.00172, ki_asr=0.002, kp_apr=100, ki_apr=0.01):
+                    return False
+            elif joint.MotorType == DM_Motor_Type.DM6248:
+                if not self.set_motor_pos_vel_param(motor=joint, acc=5, dec=-5, kp_asr=0.00068, ki_asr=0.001, kp_apr=400, ki_apr=0.001):
+                    return False
 
-    # def set_mode(self):
-    #     for i, joint in enumerate(self.joints):
-    #         if not self.set_motor_mode(joint, Control_Type.POS_VEL):
-    #             print(f"joint {i} set failed")
-    #             return False
-        
-    #     if not self.set_motor_mode(self.gripper, Control_Type.Torque_Pos):
-    #         return False
-        
-    #     return True
-    
-    # def set_mit_mode(self):
-    #     for i, joint in enumerate(self.joints):
-    #         if not self.set_motor_mode(joint, Control_Type.MIT):
-    #             print(f"joint {i} set failed")
-    #             return False
-        
-    #     if not self.set_motor_mode(self.gripper, Control_Type.MIT):
-    #         return False
-        
-    #     return True
-    
-    # def set_joint_param(self):
-    #     for joint in self.joints:
-    #         if joint.MotorType == DM_Motor_Type.DM4340:
-    #             if not self.set_motor_param(motor=joint, acc=8, dec=-8, kp_asr=0.000884, ki_asr=0.005, kp_apr=500, ki_apr=0.0001):
-    #                 return False
-    #         elif joint.MotorType == DM_Motor_Type.DM4310:
-    #             if not self.set_motor_param(motor=joint, acc=10, dec=-10, kp_asr=0.00172, ki_asr=0.002, kp_apr=100, ki_apr=0.01):
-    #                 return False
-    #         elif joint.MotorType == DM_Motor_Type.DM6248:
-    #             if not self.set_motor_param(motor=joint, acc=5, dec=-5, kp_asr=0.00068, ki_asr=0.001, kp_apr=400, ki_apr=0.001):
-    #                 return False
+        return True
 
-    #     return True
+    def switch_motor_mode(self, motor, MODE: Control_Type):
+        self.MotorCtrl.refresh_motor_status(motor)
+        curr_mode = self.MotorCtrl.read_motor_param(motor,DM_variable.CTRL_MODE)
+        if curr_mode != MODE:
+            self.MotorCtrl.change_motor_param(motor, DM_variable.CTRL_MODE, MODE)
+            self.MotorCtrl.refresh_motor_status(motor)
 
+        curr_mode = self.MotorCtrl.read_motor_param(motor,DM_variable.CTRL_MODE)
+        if curr_mode != MODE:
+            return False
+
+        return True
+
+    def set_mode(self):
+        if self.type == 'leader':
+            for i, joint in enumerate(self.joints):
+                if not self.switch_motor_mode(joint, Control_Type.MIT):
+                    print(f"joint {i} set failed")
+                    return False
+            
+            if not self.switch_motor_mode(self.gripper, Control_Type.MIT):
+                return False
+            
+        elif self.type == 'follower':
+            for i, joint in enumerate(self.joints):
+                if not self.switch_motor_mode(joint, Control_Type.POS_VEL):
+                    print(f"joint {i} set failed")
+                    return False
+            
+            if not self.switch_motor_mode(self.gripper, Control_Type.Torque_Pos):
+                return False
+            
+            if not self.set_joint_pos_vel_param():
+                return False
+        else:
+            print("Error: maybe type is not defined?")
+        
+        print(f"Successfully set the {self.type} work mode")
+        return True
 
     def set_zero(self) -> bool:
         ret = True
         for joint in self.joints:
-            self.RobotCtrl.enable(joint)
-            self.RobotCtrl.set_zero_position(joint)
-            self.RobotCtrl.refresh_motor_status(joint)
+            self.MotorCtrl.enable(joint)
+            self.MotorCtrl.set_zero_position(joint)
+            self.MotorCtrl.refresh_motor_status(joint)
             q = joint.getPosition()
             if abs(q) > 1e-2:
                 ret = False
-            self.RobotCtrl.disable(joint)
+            self.MotorCtrl.disable(joint)
 
-        self.RobotCtrl.enable(self.gripper)
-        self.RobotCtrl.set_zero_position(self.gripper)
-        self.RobotCtrl.refresh_motor_status(self.gripper)
+        self.MotorCtrl.enable(self.gripper)
+        self.MotorCtrl.set_zero_position(self.gripper)
+        self.MotorCtrl.refresh_motor_status(self.gripper)
         q = self.gripper.getPosition()
         if abs(q) > 1e-2:
             ret = False
-        self.RobotCtrl.disable(self.gripper)
+        self.MotorCtrl.disable(self.gripper)
         return ret
 
     def _apply_inversion(self, joint_angles):
@@ -360,30 +388,33 @@ class RobotController:
     def get_current_joint_angles(self):
         positions = []
         for joint in self.joints:
-            self.RobotCtrl.refresh_motor_status(joint)
+            self.MotorCtrl.refresh_motor_status(joint)
             positions.append(round(float(joint.getPosition()), 7))
 
         return self._invert_read(positions)
     
     def get_current_gripper_angles(self):
-        self.RobotCtrl.refresh_motor_status(self.gripper)
+        self.MotorCtrl.refresh_motor_status(self.gripper)
         gripper = round(float(self.gripper.getPosition()), 7)
         return gripper
     
     def set_joint_angles(self, q, v):
         if self.type == 'follower':
-            q = self._apply_inversion(q)
+            # 这里的q和仿真一致
+            q = self.set_joint_boundary(q)
 
+            q = self._apply_inversion(q)
             for i, joint in enumerate(self.joints):
-                self.RobotCtrl.control_Pos_Vel(joint, q[i], v)
+                self.MotorCtrl.control_Pos_Vel(joint, q[i], v)
         else:
-            print("Only Slave Arm can set q")
+            print("Only follower Arm can set q")
     
     def set_gripper_angles(self, gripper_angle, v, tau_limit = 0.1):
         if self.type == 'follower':
-            self.RobotCtrl.control_pos_force(self.gripper, gripper_angle, v, tau_limit)
+            gripper_angle = self.set_gripper_boundary(gripper_angle)
+            self.MotorCtrl.control_pos_force(self.gripper, gripper_angle, v, tau_limit)
         else:
-            print("Only Slave Arm can set gripper")
+            print("Only follower Arm can set gripper")
 
     # def check_joint_limits(self, joint_angles):
     #     """检查关节角度是否在限程内。"""
@@ -410,9 +441,9 @@ class RobotController:
 
             for i, joint in enumerate(self.joints):
                 if i in self.inverted_axes:
-                    self.RobotCtrl.controlMIT(joint, 0, 0, 0, 0, -tau[i])
+                    self.MotorCtrl.controlMIT(joint, 0, 0, 0, 0, -tau[i])
                 else:
-                    self.RobotCtrl.controlMIT(joint, 0, 0, 0, 0, tau[i])
+                    self.MotorCtrl.controlMIT(joint, 0, 0, 0, 0, tau[i])
 
         else:
-            print("Only Master Arm supports Gravity Compensation")
+            print("Only leader Arm supports Gravity Compensation")

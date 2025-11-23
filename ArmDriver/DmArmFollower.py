@@ -92,7 +92,7 @@ class DmArmFollower(Robot):
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
         self.arm = RobotController(self.config.port, type='follower')
-        if self.arm.RobotCtrl.serial_.is_open:
+        if self.arm.connect():
             self._is_connected = True
         else:
             print("Follower Arm connected fail")
@@ -131,7 +131,7 @@ class DmArmFollower(Robot):
         self.obs_dict["joint_4.pos"] = pos[3]
         self.obs_dict["joint_5.pos"] = pos[4]
         self.obs_dict["joint_6.pos"] = pos[5]
-        self.obs_dict["gripper"] = self.arm.get_current_joint_angles()
+        self.obs_dict["gripper"] = self.arm.get_current_gripper_angles()
 
         dt_ms = (time.perf_counter() - start) * 1e3
         print(f"read state: {dt_ms:.1f}ms")
@@ -166,8 +166,8 @@ class DmArmFollower(Robot):
         if not self.first_action_received:
             self.first_action_received = True
             start = time.perf_counter()
-            self.arm.set_joint_angles(pos, 1)
-            self.arm.set_gripper_angles(gripper_angle=gripper*2, v=2, tau_limit=0.1)
+            self.arm.set_joint_angles(pos, 3) # vel = 3
+            self.arm.set_gripper_angles(gripper_angle=gripper, v=2, tau_limit=0.1)
             time.sleep(1)
             dt_ms = (time.perf_counter() - start) * 1e3
             print(f"Run to start position of first action: {dt_ms:.1f} ms")
@@ -176,7 +176,7 @@ class DmArmFollower(Robot):
         # Send goal position to the arm
 
         self.arm.set_joint_angles(pos, 6)
-        self.arm.set_gripper_angles(gripper_angle=gripper*2, v=2, tau_limit=0.1)
+        self.arm.set_gripper_angles(gripper_angle=gripper, v=2, tau_limit=0.1)
         return action
 
     def disconnect(self):
@@ -187,6 +187,7 @@ class DmArmFollower(Robot):
         self.arm.set_gripper_angles(0, 2, 0.2)
         time.sleep(1)
         self.arm.disable()
+        self.arm.disconnect()
         self._is_connected = False
 
         for cam in self.cameras.values():

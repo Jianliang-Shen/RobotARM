@@ -1,5 +1,5 @@
-from ArmDriver.follower import DmArmFollower, DmArmFollowerConfig
-from ArmDriver.leader import DmArmLeader, DmArmLeaderConfig
+from ArmDriver.DmArmFollower import DmArmFollower, DmArmFollowerConfig
+from ArmDriver.DmArmLeader import DmArmLeader, DmArmLeaderConfig
 import time
 
 

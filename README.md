@@ -97,7 +97,7 @@
     ```bash
     # 首次运行会保存校准数据到 .follower_calibration 中
     lerobot-calibrate \
-        --teleop.type=servo_arm_leader \
+        --teleop.type=uarm_leader \
         --teleop.port=/dev/ttyUSB0 \
         --teleop.id=my_awesome_leader_arm \
         --teleop.fps=25
@@ -121,7 +121,7 @@
             wrist: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30},
             front: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30}
           }" \
-        --teleop.type=servo_arm_leader \
+        --teleop.type=uarm_leader \
         --teleop.port=/dev/ttyUSB0 \
         --teleop.fps=25 \
         --display_data=true
