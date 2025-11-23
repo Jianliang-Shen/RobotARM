@@ -468,7 +468,7 @@ class MujocoRobot:
         self.viewer.sync()
 
 class MujocoDuoRobot:
-    def __init__(self, joint_step_size = 0.02, gripper_step_size = 0.002, ee_step_size = 0.008, ee_roll_size = 0.015, x = 0, y = 0):
+    def __init__(self, joint_step_size = 0.02, gripper_step_size = 0.002, ee_step_size = 0.008, ee_roll_size = 0.015):
         # 加载机器人模型
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.model = mujoco.MjModel.from_xml_path(f"{base_dir}/urdf/urdf/dua_arm.xml")
@@ -481,7 +481,7 @@ class MujocoDuoRobot:
         self.ee_roll_size = ee_roll_size
 
     def update_left(self, qos, gripper):
-        self.data.qpos[0:7] = [-0.3, 0, 0, -0.70710678, 0, 0, 0.70710678]
+        self.data.qpos[0:7] = [-0.3, 0, 0, 0.70710678, 0, 0, 0.70710678]
 
         self.data.qpos[7:13] = qos
         self.data.qpos[13] = gripper
@@ -491,7 +491,7 @@ class MujocoDuoRobot:
         mujoco.mj_step(self.model, self.data)
 
     def update_right(self, qos, gripper):
-        self.data.qpos[15:22] = [0.3, 0, 0, -0.70710678, 0, 0, 0.70710678]
+        self.data.qpos[15:22] = [0.3, 0, 0, 0.70710678, 0, 0, 0.70710678]
 
         self.data.qpos[22:28] = qos
         self.data.qpos[28] = gripper
