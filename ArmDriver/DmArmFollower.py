@@ -12,6 +12,7 @@ from lerobot.robots import Robot, RobotConfig
 from lerobot.robots.utils import ensure_safe_goal_position
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from ArmDriver.ArmDriver import RobotController
+from ArmDriver.DM_CAN import *
 
 logger = logging.getLogger(__name__)
 
@@ -44,30 +45,19 @@ class DmArmFollower(Robot):
 
         self.cameras = make_cameras_from_configs(config.cameras)
 
-    @property
-    def _motors_ft(self) -> dict[str, type]:
-        pos_dict = {
-            "joint_1.pos": 0,
-            "joint_2.pos": 0,
-            "joint_3.pos": 0,
-            "joint_4.pos": 0,
-            "joint_5.pos": 0,
-            "joint_6.pos": 0,
-            "gripper": 0,
+        self.motors = {
+            "joint_1": Motor(DM_Motor_Type.DM4340, 0x01, 0x11),
+            "joint_2": Motor(DM_Motor_Type.DM6248, 0x02, 0x12),
+            "joint_3": Motor(DM_Motor_Type.DM4340, 0x03, 0x13),
+            "joint_4": Motor(DM_Motor_Type.DM4340, 0x04, 0x14),
+            "joint_5": Motor(DM_Motor_Type.DM4310, 0x05, 0x15),
+            "joint_6": Motor(DM_Motor_Type.DM4310, 0x06, 0x16),
+            "gripper": Motor(DM_Motor_Type.DM4310, 0x07, 0x17),
         }
 
-        # pos = self.arm.get_q()
-
-        # if pos:
-            # pos_dict["joint_1.pos"] = pos[0]
-            # pos_dict["joint_2.pos"] = pos[1]
-            # pos_dict["joint_3.pos"] = pos[2]
-            # pos_dict["joint_4.pos"] = pos[3]
-            # pos_dict["joint_5.pos"] = pos[4]
-            # pos_dict["joint_6.pos"] = pos[5]
-            # pos_dict["gripper"] = pos[6]
-
-        return pos_dict
+    @property
+    def _motors_ft(self) -> dict[str, type]:
+        return {f"{motor}.pos": float for motor in self.motors}
 
     @property
     def _cameras_ft(self) -> dict[str, tuple]:
@@ -131,7 +121,7 @@ class DmArmFollower(Robot):
         self.obs_dict["joint_4.pos"] = pos[3]
         self.obs_dict["joint_5.pos"] = pos[4]
         self.obs_dict["joint_6.pos"] = pos[5]
-        self.obs_dict["gripper"] = self.arm.get_current_gripper_angles()
+        self.obs_dict["gripper.pos"] = self.arm.get_current_gripper_angles()
 
         dt_ms = (time.perf_counter() - start) * 1e3
         print(f"read state: {dt_ms:.1f}ms")
@@ -159,19 +149,19 @@ class DmArmFollower(Robot):
             action["joint_6.pos"],
         ]
 
-        gripper = action["gripper"]
+        gripper = action["gripper.pos"]
 
         # print(f"pos is {pos}, gripper is {gripper}")
 
-        if not self.first_action_received:
-            self.first_action_received = True
-            start = time.perf_counter()
-            self.arm.set_joint_angles(pos, 0.5) # vel = 3
-            self.arm.set_gripper_angles(gripper_angle=gripper, v=2, tau_limit=0.1)
-            time.sleep(5)
-            dt_ms = (time.perf_counter() - start) * 1e3
-            print(f"Run to start position of first action: {dt_ms:.1f} ms")
-            time.sleep(1)
+        # if not self.first_action_received:
+        #     self.first_action_received = True
+        #     start = time.perf_counter()
+        #     self.arm.set_joint_angles(pos, 0.5) # vel = 3
+        #     self.arm.set_gripper_angles(gripper_angle=gripper, v=2, tau_limit=0.1)
+        #     time.sleep(5)
+        #     dt_ms = (time.perf_counter() - start) * 1e3
+        #     print(f"Run to start position of first action: {dt_ms:.1f} ms")
+        #     time.sleep(1)
 
         # Send goal position to the arm
 

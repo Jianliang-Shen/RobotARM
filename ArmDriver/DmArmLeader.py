@@ -93,7 +93,7 @@ class DmArmLeader(Teleoperator):
         action["joint_4.pos"] = self.results[3]
         action["joint_5.pos"] = self.results[4]
         action["joint_6.pos"] = self.results[5]
-        action["gripper"] = self.arm.get_current_gripper_angles() * self._gripper_scale
+        action["gripper.pos"] = self.arm.get_current_gripper_angles() * self._gripper_scale
         
         # print(action)
         return action
