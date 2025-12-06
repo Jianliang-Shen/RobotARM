@@ -3,7 +3,7 @@ from ArmDriver.RobotKinematics import MujocoRobot
 import time
 
 leader_config = UArmLeaderConfig(
-    port="/dev/ttyUSB1",
+    port="/dev/ttyUSB0",
     fps=50
 )
 

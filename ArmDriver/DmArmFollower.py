@@ -166,9 +166,9 @@ class DmArmFollower(Robot):
         if not self.first_action_received:
             self.first_action_received = True
             start = time.perf_counter()
-            self.arm.set_joint_angles(pos, 3) # vel = 3
+            self.arm.set_joint_angles(pos, 0.5) # vel = 3
             self.arm.set_gripper_angles(gripper_angle=gripper, v=2, tau_limit=0.1)
-            time.sleep(1)
+            time.sleep(5)
             dt_ms = (time.perf_counter() - start) * 1e3
             print(f"Run to start position of first action: {dt_ms:.1f} ms")
             time.sleep(1)
@@ -183,9 +183,9 @@ class DmArmFollower(Robot):
         if not self.is_connected:
             raise DeviceNotConnectedError("DmArmFollower is not connected.")
 
-        self.arm.set_joint_angles([0, 0, 0, 0, 0, 0], 1)
+        self.arm.set_joint_angles([0, 0, 0, 0, 0, 0], 0.5)
         self.arm.set_gripper_angles(0, 2, 0.2)
-        time.sleep(1)
+        time.sleep(2)
         self.arm.disable()
         self.arm.disconnect()
         self._is_connected = False

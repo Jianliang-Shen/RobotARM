@@ -3,12 +3,12 @@ from ArmDriver.DM_CAN import *
 from ArmDriver.ArmDriver import RobotController
 
 if __name__ == "__main__":
-    leader = RobotController(port='/dev/ttyACM0', type='leader')
+    leader = RobotController(port='/dev/ttyACM1', type='leader')
     leader.connect()
     leader.enable()
     time.sleep(0.5)
 
-    follower = RobotController(port='/dev/ttyACM1', type='follower')
+    follower = RobotController(port='/dev/ttyACM0', type='follower')
     follower.connect()
     follower.enable()
     time.sleep(0.5)

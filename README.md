@@ -116,10 +116,10 @@
     # 控制频率 30 帧
     lerobot-teleoperate \
         --robot.type=dm_arm_follower \
-        --robot.port=/dev/ttyACM0 \
+        --robot.port=/dev/ttyACM1 \
         --robot.cameras="{                                                           
-            wrist: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30},
-            front: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30}
+            wrist: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30},
+            front: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30}
           }" \
         --teleop.type=uarm_leader \
         --teleop.port=/dev/ttyUSB0 \

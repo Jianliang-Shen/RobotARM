@@ -398,6 +398,13 @@ class RobotController:
         gripper = round(float(self.gripper.getPosition()), 7)
         return gripper
     
+    def get_current_joint_tau(self):
+        tau = []
+        for joint in self.joints:
+            self.MotorCtrl.refresh_motor_status(joint)
+            tau.append(joint.getTorque())
+        return tau
+    
     def set_joint_angles(self, q, v):
         if self.type == 'follower':
             # 这里的q和仿真一致
@@ -427,7 +434,7 @@ class RobotController:
     #             )
     #     return True
 
-    def gravity_compensation(self):
+    def gravity_compensation(self, feadback = [0, 0, 0, 0, 0, 0]):
         if self.type == 'leader':
             q = []
             for joint in self.joints:
@@ -441,9 +448,26 @@ class RobotController:
 
             for i, joint in enumerate(self.joints):
                 if i in self.inverted_axes:
-                    self.MotorCtrl.controlMIT(joint, 0, 0, 0, 0, -tau[i])
+                    self.MotorCtrl.controlMIT(joint, 0, 0, 0, 0, -tau[i] - 0.1 * feadback[i])
                 else:
-                    self.MotorCtrl.controlMIT(joint, 0, 0, 0, 0, tau[i])
+                    self.MotorCtrl.controlMIT(joint, 0, 0, 0, 0, tau[i] - 0.1 * feadback[i])
 
         else:
             print("Only leader Arm supports Gravity Compensation")
+
+    def gravity(self):
+            q = []
+            for joint in self.joints:
+                q.append(joint.getPosition())
+            theta = np.array(self._invert_read(q))
+
+            theta_d = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # Joint velocities
+            theta_dd = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # Joint accelerations
+            f_external = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # External force/torque [fx, fy, fz, tx, ty, tz]
+            tau = InverseDynamics.inv_dyn2(theta, theta_d, theta_dd, f_external)
+            for i, joint in enumerate(self.joints):
+                if i in self.inverted_axes:
+                    tau[i] = -tau[i]
+            return tau
+
+

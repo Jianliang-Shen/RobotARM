@@ -8,7 +8,7 @@ follower_config = DmArmFollowerConfig(
 )
 
 leader_config = UArmLeaderConfig(
-    port="/dev/ttyUSB1",
+    port="/dev/ttyUSB0",
     fps=30
 )
 
