@@ -64,17 +64,17 @@
     # record
     lerobot-record \
       --robot.type=dm_arm_follower \
-      --robot.port=/dev/ttyACM1 \
+      --robot.port=COM18 \
       --robot.cameras="{
           wrist: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30},
           front: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30}
         }" \
       --teleop.type=dm_arm_leader \
-      --teleop.port=/dev/ttyACM0 \
+      --teleop.port=COM13 \
       --display_data=true \
-      --dataset.repo_id=shenjianliang/test \
+      --dataset.repo_id=shenjianliang/dm_arm_test \
       --dataset.push_to_hub=false \
-      --dataset.num_episodes=50 \
+      --dataset.num_episodes=2 \
       --dataset.episode_time_s=30 \
       --dataset.reset_time_s=15 \
       --dataset.single_task="Test" \
@@ -126,3 +126,11 @@
         --teleop.fps=25 \
         --display_data=true
     ```
+
+# 训练推理
+
+Windows 需要解决下面问题
+
+1. torch 要装cuda版本的
+2. CAP_DSHOW 的后端
+3. torchcodec 和 ffmpeg 适配问题
