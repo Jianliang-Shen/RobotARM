@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import logging
 
 from lerobot.teleoperators.teleoperator import Teleoperator, TeleoperatorConfig
-from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
+from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from ArmDriver.DmArmLeader import DmArmLeader, DmArmLeaderConfig
 
 logger = logging.getLogger(__name__)

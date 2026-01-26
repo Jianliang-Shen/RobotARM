@@ -10,7 +10,7 @@ from lerobot.cameras import CameraConfig
 from lerobot.cameras.utils import make_cameras_from_configs
 from lerobot.robots import Robot, RobotConfig
 from lerobot.robots.utils import ensure_safe_goal_position
-from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
+from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from ArmDriver.ArmDriver import RobotController
 from ArmDriver.DM_CAN import *
 

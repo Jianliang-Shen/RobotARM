@@ -5,7 +5,7 @@ import numpy as np
 import threading
 
 from lerobot.teleoperators.teleoperator import Teleoperator, TeleoperatorConfig
-from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
+from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from ArmDriver.ArmDriver import RobotController
 
 logger = logging.getLogger(__name__)

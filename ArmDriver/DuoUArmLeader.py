@@ -9,7 +9,7 @@ import re
 import os
 
 from lerobot.teleoperators.teleoperator import Teleoperator, TeleoperatorConfig
-from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
+from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from ArmDriver.UArmLeader import UArmLeader, UArmLeaderConfig
 
 logger = logging.getLogger(__name__)
