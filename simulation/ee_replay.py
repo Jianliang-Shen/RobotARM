@@ -178,7 +178,7 @@ if __name__ == "__main__":
     arm = RobotKinematics()
     
     # 初始基准位置 [x, y, z, roll, pitch, yaw]
-    base_pos = [0.28242831, 0.00000000, 0.27615891, -1.57, 1.57, -1.57]
+    base_pos = [0.39442831, 0.00000000, 0.42015891, -1.57, 1.57, -1.57]
     base_x, base_y, base_z, base_roll, base_pitch, base_yaw = base_pos
     
     # 将初始基准欧拉角转换为四元数
@@ -247,7 +247,7 @@ if __name__ == "__main__":
                 pos_old = pos.copy()
                 q_old = q.copy()
 
-                q[5] -= 1.57
+                q[5] -= 2.0
                 
                 # 更新仿真
                 sim.update_param(q, gripper)
